@@ -22,8 +22,10 @@ dependencies:
   flutter_secure_storage: ^4.2.1
   google_maps_flutter: ^2.0.6
   permission_handler: ^10.2.0
-
+  uuid: ^3.0.4
+  geocoding: ^2.0.0
   geolocator: ^9.0.2
+  url_launcher: ^6.3.0
   
 dev_dependencies:
   flutter_test:

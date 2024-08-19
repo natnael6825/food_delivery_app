@@ -1,7 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'map_screen.dart';
+import 'MenuPage.dart'; // Import the MenuPage
 
-class HomeContent extends StatelessWidget {
+class HomeContent extends StatefulWidget {
+  final List<Map<String, dynamic>> cartItems; // Add cartItems as a parameter
+
+  const HomeContent({required this.cartItems});
+
+  @override
+  _HomeContentState createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<HomeContent> {
+  List<dynamic> restaurants = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchRestaurants();
+  }
+
+  Future<void> fetchRestaurants() async {
+    final url = Uri.parse('https://3362-196-189-19-218.ngrok-free.app/restaurant/restaurants'); // Replace with your API URL
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          restaurants = data;
+          isLoading = false;
+        });
+      } else {
+        // Handle errors
+        setState(() {
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load restaurants')),
+        );
+      }
+    } catch (error) {
+      // Handle errors
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred: $error')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,85 +74,124 @@ class HomeContent extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              color: const Color(0xFF652023),
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 5),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Text(
-                      'Special Orders',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 16.0),
                   Container(
-                    height: 200,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
+                    color: const Color(0xFF652023),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 5),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SpecialOrderCard(imagePath: 'assets/burger.png', title: 'Order 1'),
-                        SpecialOrderCard(imagePath: 'assets/burger.png', title: 'Restaurant 2'),
-                        SpecialOrderCard(imagePath: 'assets/burger.png', title: 'Restaurant 3'),
-                        SpecialOrderCard(imagePath: 'assets/burger.png', title: 'Restaurant 4'),
+                        Center(
+                          child: Text(
+                            'Special Orders',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16.0),
+                        Container(
+                          height: 200,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: restaurants.length,
+                            itemBuilder: (context, index) {
+                              final restaurant = restaurants[index];
+                              final imageUrl = 'https://3362-196-189-19-218.ngrok-free.app${restaurant['image']}'; // Construct full image URL
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => MenuPage(
+                                        restaurantId: restaurant['id'],
+                                        cartItems: widget.cartItems,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: SpecialOrderCard(
+                                  imagePath: imageUrl,
+                                  title: restaurant['name'],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.center,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: TextButton(
+                              onPressed: () {
+                                // View all logic
+                              },
+                              child: Text(
+                                'View All',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.center,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: TextButton(
-                        onPressed: () {
-                          // View all logic
-                        },
-                        child: Text(
-                          'View All',
-                          style: TextStyle(color: Colors.white),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        'Top Restaurant',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF652023),
                         ),
                       ),
                     ),
                   ),
+                  GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,  // Number of columns in the grid
+                      crossAxisSpacing: 10.0,  // Spacing between columns
+                      mainAxisSpacing: 10.0,  // Spacing between rows
+                      childAspectRatio: 1.0,  // Aspect ratio of the items (width/height)
+                    ),
+                    shrinkWrap: true,  // Makes the GridView only take as much space as its content needs
+                    physics: NeverScrollableScrollPhysics(), // Disables the GridView's own scrolling
+                    padding: const EdgeInsets.all(16.0),
+                    itemCount: restaurants.length,
+                    itemBuilder: (context, index) {
+                      final restaurant = restaurants[index];
+                      final imageUrl = 'https://3362-196-189-19-218.ngrok-free.app${restaurant['image']}'; // Construct full image URL
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MenuPage(
+                                restaurantId: restaurant['id'],
+                                cartItems: widget.cartItems,
+                              ),
+                            ),
+                          );
+                        },
+                        child: TopRestaurantCard(
+                          imagePath: imageUrl,
+                          title: restaurant['name'],
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Center(
-                child: Text(
-                  'Top Restaurant',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF652023),
-                  ),
-                ),
-              ),
-            ),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                TopRestaurantCard(imagePath: 'assets/burger.png', title: 'Name of restaurant'),
-                TopRestaurantCard(imagePath: 'assets/burger.png', title: 'Name of restaurant'),
-                TopRestaurantCard(imagePath: 'assets/burger.png', title: 'Name of restaurant'),
-                TopRestaurantCard(imagePath: 'assets/burger.png', title: 'Name of restaurant'),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -122,10 +214,13 @@ class SpecialOrderCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Image.asset(
+            Image.network(
               imagePath,
               height: 120,
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Image.asset('assets/burger.png', height: 120, fit: BoxFit.cover);
+              },
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -163,10 +258,13 @@ class TopRestaurantCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
+            Image.network(
               imagePath,
               height: 100,
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Image.asset('assets/burger.png', height: 100, fit: BoxFit.cover);
+              },
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),

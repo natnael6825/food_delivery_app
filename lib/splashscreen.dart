@@ -27,7 +27,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (token == null) {
       _navigateToLogin();
     } else {
-      final url = Uri.parse('https://fe50-196-189-19-20.ngrok-free.app/user/sessionlogin');
+      final url = Uri.parse('https://3362-196-189-19-218.ngrok-free.app/user/sessionlogin');
       final response = await http.post(
         url,
         headers: {'Authorization': 'Bearer $token'},

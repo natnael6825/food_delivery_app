@@ -3,6 +3,7 @@ import 'HomeContent.dart';
 import 'CartPage.dart';
 import 'ProfilePage.dart';
 
+
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
@@ -11,6 +12,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   PageController _pageController = PageController();
+
+  List<Map<String, dynamic>> cartItems = [];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -31,9 +34,9 @@ class _HomePageState extends State<HomePage> {
           });
         },
         children: [
-          HomeContent(),
-          CartPage(),
-          ProfilePage(),
+          HomeContent(cartItems: cartItems), // This should be your actual home page content
+          CartPage(cartItems: cartItems), // The cart page
+          ProfilePage(), // Profile page
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

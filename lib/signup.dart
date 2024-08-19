@@ -31,8 +31,10 @@ class _SignupState extends State<Signup> {
       );
       return;
     }
-
-    final url = Uri.parse('http://localhost:80/user/createUser');
+  
+        
+   
+    final url = Uri.parse('https://ae73-196-189-19-218.ngrok-free.app/user/signup');
 
     try {
       final response = await http.post(
