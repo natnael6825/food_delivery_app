@@ -26,6 +26,7 @@ dependencies:
   geocoding: ^2.0.0
   geolocator: ^9.0.2
   url_launcher: ^6.3.0
+  lottie: ^1.2.0
   
 dev_dependencies:
   flutter_test:
@@ -46,6 +47,7 @@ flutter:
     - assets/pizza.png
     - assets/4.png
     - assets/Pizza_spinning.gif
+    - assets/load.gif
    
 
   

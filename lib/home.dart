@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'HomeContent.dart';
 import 'CartPage.dart';
 import 'ProfilePage.dart';
-
+import 'orders.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -25,7 +25,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color.fromARGB(255, 190, 33, 33),
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) {
@@ -34,9 +34,10 @@ class _HomePageState extends State<HomePage> {
           });
         },
         children: [
-          HomeContent(cartItems: cartItems), // This should be your actual home page content
-          CartPage(cartItems: cartItems), // The cart page
-          ProfilePage(), // Profile page
+          HomeContent(cartItems: cartItems), 
+          CartPage(cartItems: cartItems), 
+          OrdersPage(), 
+          ProfilePage(), 
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -50,12 +51,17 @@ class _HomePageState extends State<HomePage> {
             label: 'Cart',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long),
+            label: 'Orders', // Add the Orders menu item
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF652023),
+        selectedItemColor: const Color(0xFF652023), // The color of the selected item
+        unselectedItemColor: Colors.black, // The color of the unselected items
         onTap: _onItemTapped,
       ),
     );

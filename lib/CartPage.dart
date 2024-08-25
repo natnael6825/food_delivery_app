@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'CheckoutPage.dart';
-
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geocoding/geocoding.dart';
@@ -19,6 +18,8 @@ class _CartPageState extends State<CartPage> {
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   String? _token;
   String _currentAddress = 'Fetching current location...';
+  double? _latitude;
+  double? _longitude;
   final double serviceCharge = 39.20;
   final double deliveryFee = 55.00;
 
@@ -65,6 +66,8 @@ class _CartPageState extends State<CartPage> {
     );
 
     setState(() {
+      _latitude = position.latitude;
+      _longitude = position.longitude;
       Placemark place = placemarks[0];
       _currentAddress = "${place.locality}, ${place.subAdministrativeArea}, ${place.country}";
     });
@@ -107,7 +110,7 @@ class _CartPageState extends State<CartPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Checkout'),
+        title: Text('Cart'),
         backgroundColor: const Color(0xFF652023),
       ),
       body: widget.cartItems.isEmpty
@@ -226,13 +229,24 @@ class _CartPageState extends State<CartPage> {
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
-                        // Navigate to CheckoutPage
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CheckoutPage(cartItems: widget.cartItems),
-                          ),
-                        );
+                        if (_latitude != null && _longitude != null) {
+                          // Navigate to CheckoutPage with the current location data
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CheckoutPage(
+                                cartItems: widget.cartItems,
+                                address: _currentAddress,
+                                latitude: _latitude!,
+                                longitude: _longitude!,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Unable to fetch location. Please try again.')),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0xFF652023),

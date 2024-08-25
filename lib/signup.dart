@@ -34,7 +34,7 @@ class _SignupState extends State<Signup> {
   
         
    
-    final url = Uri.parse('https://ae73-196-189-19-218.ngrok-free.app/user/signup');
+    final url = Uri.parse('https://d3a6-196-189-24-165.ngrok-free.app/user/signup');
 
     try {
       final response = await http.post(

@@ -24,7 +24,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Future<void> fetchRestaurants() async {
-    final url = Uri.parse('https://3362-196-189-19-218.ngrok-free.app/restaurant/restaurants'); // Replace with your API URL
+    final url = Uri.parse('https://d3a6-196-189-24-165.ngrok-free.app/restaurant/restaurants'); // Replace with your API URL
 
     try {
       final response = await http.get(url);
@@ -55,6 +55,13 @@ class _HomeContentState extends State<HomeContent> {
     }
   }
 
+  Future<void> _refreshRestaurants() async {
+    setState(() {
+      isLoading = true;
+    });
+    await fetchRestaurants();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -76,120 +83,123 @@ class _HomeContentState extends State<HomeContent> {
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    color: const Color(0xFF652023),
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 5),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Text(
-                            'Special Orders',
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16.0),
-                        Container(
-                          height: 200,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: restaurants.length,
-                            itemBuilder: (context, index) {
-                              final restaurant = restaurants[index];
-                              final imageUrl = 'https://3362-196-189-19-218.ngrok-free.app${restaurant['image']}'; // Construct full image URL
-                              return GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => MenuPage(
-                                        restaurantId: restaurant['id'],
-                                        cartItems: widget.cartItems,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: SpecialOrderCard(
-                                  imagePath: imageUrl,
-                                  title: restaurant['name'],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        Align(
-                          alignment: Alignment.center,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: TextButton(
-                              onPressed: () {
-                                // View all logic
-                              },
-                              child: Text(
-                                'View All',
-                                style: TextStyle(color: Colors.white),
+          : RefreshIndicator(
+              onRefresh: _refreshRestaurants,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      color: const Color(0xFF652023),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 5),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Text(
+                              'Special Orders',
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 16.0),
+                          Container(
+                            height: 200,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: restaurants.length,
+                              itemBuilder: (context, index) {
+                                final restaurant = restaurants[index];
+                                final imageUrl = 'https://d3a6-196-189-24-165.ngrok-free.app${restaurant['image']}'; // Construct full image URL
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => MenuPage(
+                                          restaurantId: restaurant['id'],
+                                          cartItems: widget.cartItems,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: SpecialOrderCard(
+                                    imagePath: imageUrl,
+                                    title: restaurant['name'],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.center,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: TextButton(
+                                onPressed: () {
+                                  // View all logic
+                                },
+                                child: Text(
+                                  'View All',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Center(
-                      child: Text(
-                        'Top Restaurant',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF652023),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Center(
+                        child: Text(
+                          'Top Restaurant',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF652023),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,  // Number of columns in the grid
-                      crossAxisSpacing: 10.0,  // Spacing between columns
-                      mainAxisSpacing: 10.0,  // Spacing between rows
-                      childAspectRatio: 1.0,  // Aspect ratio of the items (width/height)
-                    ),
-                    shrinkWrap: true,  // Makes the GridView only take as much space as its content needs
-                    physics: NeverScrollableScrollPhysics(), // Disables the GridView's own scrolling
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: restaurants.length,
-                    itemBuilder: (context, index) {
-                      final restaurant = restaurants[index];
-                      final imageUrl = 'https://3362-196-189-19-218.ngrok-free.app${restaurant['image']}'; // Construct full image URL
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MenuPage(
-                                restaurantId: restaurant['id'],
-                                cartItems: widget.cartItems,
+                    GridView.builder(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,  // Number of columns in the grid
+                        crossAxisSpacing: 10.0,  // Spacing between columns
+                        mainAxisSpacing: 10.0,  // Spacing between rows
+                        childAspectRatio: 1.0,  // Aspect ratio of the items (width/height)
+                      ),
+                      shrinkWrap: true,  // Makes the GridView only take as much space as its content needs
+                      physics: NeverScrollableScrollPhysics(), // Disables the GridView's own scrolling
+                      padding: const EdgeInsets.all(16.0),
+                      itemCount: restaurants.length,
+                      itemBuilder: (context, index) {
+                        final restaurant = restaurants[index];
+                        final imageUrl = 'https://d3a6-196-189-24-165.ngrok-free.app${restaurant['image']}'; // Construct full image URL
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MenuPage(
+                                  restaurantId: restaurant['id'],
+                                  cartItems: widget.cartItems,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        child: TopRestaurantCard(
-                          imagePath: imageUrl,
-                          title: restaurant['name'],
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                            );
+                          },
+                          child: TopRestaurantCard(
+                            imagePath: imageUrl,
+                            title: restaurant['name'],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
     );
