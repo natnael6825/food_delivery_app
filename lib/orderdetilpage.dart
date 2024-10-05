@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lottie/lottie.dart';
 
+import 'tracking_option_page.dart';
+
 class OrderDetailPage extends StatefulWidget {
   final dynamic order;
 
@@ -16,6 +18,7 @@ class OrderDetailPage extends StatefulWidget {
 class _OrderDetailPageState extends State<OrderDetailPage> {
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   String _orderStatus = '';
+  String? _imageUrl; // Variable to store image URL from the response
   bool _isLoading = true;
   bool _showTrackingButton = false;
 
@@ -40,7 +43,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
     final response = await http.post(
       Uri.parse(
-          'https://d3a6-196-189-24-165.ngrok-free.app/user/getOrdersById?Id=${widget.order['id']}'),
+          'https://96a1-196-189-19-20.ngrok-free.app/user/getOrdersById?Id=${widget.order['id']}'),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token"
@@ -54,6 +57,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         final orderData = responseBody[0];
         setState(() {
           _orderStatus = orderData['status'];
+          _imageUrl = orderData['imagefile']; // Assign the image URL
           _isLoading = false;
           _showTrackingButton = _orderStatus == 'delivering';
         });
@@ -80,6 +84,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     Future.delayed(Duration(seconds: 10), () {
       if (mounted) {
         _fetchOrderStatus();
+        _startAutoRefresh(); // Continue auto-refreshing
       }
     });
   }
@@ -99,7 +104,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       fit: BoxFit.cover,
                     )
                   : Icon(
-                      Icons.radio_button_unchecked,
+                      Icons.radio_button_unchecked, 
                       color: Colors.grey,
                     ),
               Container(
@@ -135,57 +140,74 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.fastfood,
-                    size: 100,
-                    color: Colors.orange,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'INVOICE : ${widget.order['tx_ref']}',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 30),
-                  _buildOrderStatusStep(
-                      'Order received awaiting restaurant confirmation',
-                      _orderStatus == 'waiting for delivery' ||
-                          _orderStatus == 'resturant confirmed' ||
-                          _orderStatus == 'delivery man received' ||
-                          _orderStatus == 'delivering'),
-                  _buildOrderStatusStep(
-                      'Assign delivery man',
-                      _orderStatus == 'resturant confirmed' ||
-                          _orderStatus == 'delivery man received' ||
-                          _orderStatus == 'delivering'),
-                  _buildOrderStatusStep(
-                      'Order received by delivery man',
-                      _orderStatus == 'delivery man received' ||
-                          _orderStatus == 'delivering'),
-                  _buildOrderStatusStep(
-                      'Delivering', _orderStatus == 'delivering'),
-                  if (_showTrackingButton)
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (_imageUrl != null)
+                      Image.network(
+                        _imageUrl!,
+                        width: double.infinity,
+                        height: 200, // Increase height for landscape effect
+                        fit: BoxFit.cover, // Ensure the image covers the space
+                      )
+                    else
+                      Icon(
+                        Icons.fastfood,
+                        size: 100,
+                        color: Colors.orange,
+                      ),
+                    SizedBox(height: 8),
+                    Text(
+                      'INVOICE : ${widget.order['tx_ref']}',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 30),
+                    _buildOrderStatusStep(
+                        'Order received awaiting restaurant confirmation',
+                        _orderStatus == 'waiting for delivery' ||
+                            _orderStatus == 'resturant confirmed' ||
+                            _orderStatus == 'delivery man received' ||
+                            _orderStatus == 'delivering'),
+                    _buildOrderStatusStep(
+                        'Assign delivery man',
+                        _orderStatus == 'resturant confirmed' ||
+                            _orderStatus == 'delivery man received' ||
+                            _orderStatus == 'delivering'),
+                    _buildOrderStatusStep(
+                        'Order received by delivery man',
+                        _orderStatus == 'delivery man received' ||
+                            _orderStatus == 'delivering'),
+                    _buildOrderStatusStep(
+                        'Delivering', _orderStatus == 'delivering'),
                     Padding(
                       padding: const EdgeInsets.only(top: 20.0),
                       child: ElevatedButton(
-                        onPressed: () {
-                          // Handle tracking button press
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: Text('TRACKING'),
-                      ),
+  onPressed: _showTrackingButton
+      ? () {
+          // Navigate to the TrackingOptionPage
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TrackingOptionPage(orderId: widget.order['id'].toString()), // Pass the orderId
+            ),
+          );
+        }
+      : null,
+  style: ElevatedButton.styleFrom(
+    minimumSize: Size(double.infinity, 50), // Set width to infinity
+    backgroundColor: _showTrackingButton ? Colors.blue : Colors.grey,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+    ),
+  ),
+  child: Text('TRACKING'),
+),
+
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
     );

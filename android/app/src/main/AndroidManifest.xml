@@ -3,11 +3,16 @@
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+        <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:label="food_delivery_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/food">
+        android:icon="@mipmap/food"
+        android:hardwareAccelerated="true"> <!-- Ensures hardware acceleration across the app -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

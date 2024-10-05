@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http; // Import the http package
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'CartPage.dart';
 import 'MenuItemDetailPage.dart';
@@ -7,8 +7,13 @@ import 'MenuItemDetailPage.dart';
 class MenuPage extends StatefulWidget {
   final int restaurantId;
   final List<Map<String, dynamic>> cartItems; // Receive cartItems from HomePage
+  final String restaurantImageUrl; // Add the restaurant image URL
 
-  const MenuPage({required this.restaurantId, required this.cartItems});
+  const MenuPage({
+    required this.restaurantId,
+    required this.cartItems,
+    required this.restaurantImageUrl, // Receive the image URL
+  });
 
   @override
   _MenuPageState createState() => _MenuPageState();
@@ -26,7 +31,8 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   Future<void> fetchMenuByRestaurantId() async {
-    final url = Uri.parse('https://d3a6-196-189-24-165.ngrok-free.app/restaurant/menus?restaurantId=${widget.restaurantId}');
+    final url = Uri.parse(
+        'https://700f-196-189-17-92.ngrok-free.app/restaurant/menus?restaurantId=${widget.restaurantId}');
 
     try {
       final response = await http.get(url);
@@ -62,7 +68,9 @@ class _MenuPageState extends State<MenuPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CartPage(cartItems: widget.cartItems), // Use the cartItems from HomePage
+        builder: (context) => CartPage(
+          cartItems: widget.cartItems, // Use the cartItems from HomePage
+        ),
       ),
     );
   }
@@ -84,6 +92,16 @@ class _MenuPageState extends State<MenuPage> {
           ? Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // Display the restaurant image at the top in landscape mode
+                Image.network(
+                  widget.restaurantImageUrl, // Use the passed image URL
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset('assets/4.png', height: 200, fit: BoxFit.cover); // Fallback image
+                  },
+                ),
                 if (restaurantDetails != null)
                   Container(
                     color: Colors.white,
@@ -94,9 +112,9 @@ class _MenuPageState extends State<MenuPage> {
                         Row(
                           children: [
                             CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'https://cdn.britannica.com/10/250610-050-BC5CCDAF/Zebra-finch-Taeniopygia-guttata-bird.jpg', // Replace with actual logo URL
-                              ),
+                              backgroundImage: widget.restaurantImageUrl.startsWith('http')
+                                  ? NetworkImage(widget.restaurantImageUrl)
+                                  : const AssetImage('assets/4.png') as ImageProvider,
                               radius: 30,
                             ),
                             SizedBox(width: 16.0),
@@ -118,7 +136,7 @@ class _MenuPageState extends State<MenuPage> {
                                 ),
                                 SizedBox(height: 4.0),
                                 Text(
-                                  'Open now', // Replace with actual status
+                                  'Open now', // Replace with actual status if available
                                   style: TextStyle(
                                     color: Colors.green,
                                   ),
@@ -148,6 +166,7 @@ class _MenuPageState extends State<MenuPage> {
                       String imageUrl = menuItem['imagefile'];
                       double price = (menuItem['price'] as num).toDouble(); // Convert price to double
 
+                      // Fallback if image URL is null or invalid
                       if (imageUrl == null || imageUrl == 'undefined') {
                         imageUrl = 'assets/4.png'; // Local placeholder image
                       }
@@ -161,6 +180,9 @@ class _MenuPageState extends State<MenuPage> {
                                   width: 50,
                                   height: 50,
                                   fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset('assets/4.png', width: 50, height: 50); // Fallback image
+                                  },
                                 )
                               : Image.asset(
                                   imageUrl,

@@ -34,7 +34,7 @@ class _OrdersPageState extends State<OrdersPage> {
     }
 
     final response = await http.get(
-      Uri.parse('https://d3a6-196-189-24-165.ngrok-free.app/user/getOrdersByUser'),
+      Uri.parse('https://700f-196-189-17-92.ngrok-free.app/user/getOrdersByUser'),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token"

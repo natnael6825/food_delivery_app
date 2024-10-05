@@ -24,7 +24,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Future<void> fetchRestaurants() async {
-    final url = Uri.parse('https://d3a6-196-189-24-165.ngrok-free.app/restaurant/restaurants'); // Replace with your API URL
+    final url = Uri.parse('https://96a1-196-189-19-20.ngrok-free.app/restaurant/restaurants'); // Replace with your API URL
 
     try {
       final response = await http.get(url);
@@ -113,7 +113,7 @@ class _HomeContentState extends State<HomeContent> {
                               itemCount: restaurants.length,
                               itemBuilder: (context, index) {
                                 final restaurant = restaurants[index];
-                                final imageUrl = 'https://d3a6-196-189-24-165.ngrok-free.app${restaurant['image']}'; // Construct full image URL
+                                final imageUrl = restaurant['image']; // Use the provided image URL
                                 return GestureDetector(
                                   onTap: () {
                                     Navigator.push(
@@ -121,7 +121,8 @@ class _HomeContentState extends State<HomeContent> {
                                       MaterialPageRoute(
                                         builder: (context) => MenuPage(
                                           restaurantId: restaurant['id'],
-                                          cartItems: widget.cartItems,
+                                          cartItems: widget.cartItems, 
+                                          restaurantImageUrl: imageUrl, // Pass the correct image URL
                                         ),
                                       ),
                                     );
@@ -178,7 +179,7 @@ class _HomeContentState extends State<HomeContent> {
                       itemCount: restaurants.length,
                       itemBuilder: (context, index) {
                         final restaurant = restaurants[index];
-                        final imageUrl = 'https://d3a6-196-189-24-165.ngrok-free.app${restaurant['image']}'; // Construct full image URL
+                        final imageUrl = restaurant['image']; // Use the provided image URL
                         return GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -186,7 +187,8 @@ class _HomeContentState extends State<HomeContent> {
                               MaterialPageRoute(
                                 builder: (context) => MenuPage(
                                   restaurantId: restaurant['id'],
-                                  cartItems: widget.cartItems,
+                                  cartItems: widget.cartItems, 
+                                  restaurantImageUrl: imageUrl, // Pass the correct image URL
                                 ),
                               ),
                             );
@@ -224,13 +226,19 @@ class SpecialOrderCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Image.network(
-              imagePath,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Image.asset('assets/burger.png', height: 120, fit: BoxFit.cover);
-              },
+            ClipRRect(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+              child: AspectRatio(
+                aspectRatio: 1.5, // Safe aspect ratio to avoid NaN errors
+                child: Image.network(
+                  imagePath,
+                  fit: BoxFit.cover, // Ensures the image covers the available space without distortion
+                  width: double.infinity, // Ensures the image takes up the full width of the container
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset('assets/burger.png', fit: BoxFit.cover, width: double.infinity);
+                  },
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -241,6 +249,8 @@ class SpecialOrderCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF652023),
                 ),
+                maxLines: 1, // Limit to a single line
+                overflow: TextOverflow.ellipsis, // Truncate text if it's too long
               ),
             ),
           ],
@@ -268,13 +278,19 @@ class TopRestaurantCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.network(
-              imagePath,
-              height: 100,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Image.asset('assets/burger.png', height: 100, fit: BoxFit.cover);
-              },
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10), // Ensures the image respects the container's round corners
+              child: AspectRatio(
+                aspectRatio: 1.5, // Safe aspect ratio to avoid NaN errors
+                child: Image.network(
+                  imagePath,
+                  fit: BoxFit.cover, // Ensures the image covers the available space without distortion
+                  width: double.infinity, // Ensures the image takes up the full width of the container
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset('assets/burger.png', fit: BoxFit.cover, width: double.infinity);
+                  },
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -286,6 +302,8 @@ class TopRestaurantCard extends StatelessWidget {
                   color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 1, // Limit to a single line
+                overflow: TextOverflow.ellipsis, // Truncate text if it's too long
               ),
             ),
           ],

@@ -27,6 +27,9 @@ dependencies:
   geolocator: ^9.0.2
   url_launcher: ^6.3.0
   lottie: ^1.2.0
+  flutter_webrtc: ^0.9.48
+  web_socket_channel: ^3.0.1
+  
   
 dev_dependencies:
   flutter_test:

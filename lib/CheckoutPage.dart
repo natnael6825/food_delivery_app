@@ -31,7 +31,6 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
   final Uuid _uuid = Uuid();
   bool _isLoading = false; // Add a loading state
   String? _txRef;
-   bool _paymentConfirmed = false;
 
   @override
   void initState() {
@@ -84,7 +83,7 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
 
       for (var item in widget.cartItems) {
         final response = await http.post(
-          Uri.parse('https://d3a6-196-189-24-165.ngrok-free.app/user/createOrder'),
+          Uri.parse('https://96a1-196-189-19-20.ngrok-free.app/orders/createOrder'),
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer $token"
@@ -109,7 +108,7 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
       if (_selectedPaymentMethod == 'Mobile Banking') {
         final paymentResponse = await http.post(
           Uri.parse(
-              'https://d3a6-196-189-24-165.ngrok-free.app/api/transaction/createPayment'),
+              'https://96a1-196-189-19-20.ngrok-free.app/api/transaction/createPayment'),
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer $token"
@@ -163,7 +162,7 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
       while (true) {
         final response = await http.get(
           Uri.parse(
-              'https://d3a6-196-189-24-165.ngrok-free.app/api/transaction/checkpayment?tx_ref=$txRef'),
+              'https://96a1-196-189-19-20.ngrok-free.app/api/transaction/checkpayment?tx_ref=$txRef'),
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer ${await _storage.read(key: 'token')}",
@@ -175,14 +174,13 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
           if (responseBody['data']['status'] == 'success') {
             setState(() {
               _isLoading = false; // Hide loading screen
-              _paymentConfirmed = true; // Mark payment as confirmed
               widget.cartItems.clear(); // Clear the cart items
             });
             await _storage.delete(key: 'ongoing_tx_ref'); // Clear the transaction reference
 
             // Pop the current page (CheckoutPage)
             Navigator.of(context).pop();
-            Navigator.of(context).pop();
+             Navigator.of(context).pop();
 
             // Navigate to the Orders page using the widget instance
             Navigator.of(context).push(MaterialPageRoute(builder: (context) => OrdersPage()));
@@ -190,11 +188,9 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
           }
         }
 
-        if (!_paymentConfirmed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Waiting for payment confirmation...')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Waiting for payment confirmation...')),
+        );
 
         await Future.delayed(Duration(seconds: 5)); // Wait for 5 seconds before checking again
       }
