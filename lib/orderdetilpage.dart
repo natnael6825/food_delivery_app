@@ -43,7 +43,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
     final response = await http.post(
       Uri.parse(
-          'https://96a1-196-189-19-20.ngrok-free.app/user/getOrdersById?Id=${widget.order['id']}'),
+          'https://ac7b-196-188-77-203.ngrok-free.app/user/getOrdersById?Id=${widget.order['id']}'),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token"

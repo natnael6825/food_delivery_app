@@ -32,7 +32,7 @@ class _MenuPageState extends State<MenuPage> {
 
   Future<void> fetchMenuByRestaurantId() async {
     final url = Uri.parse(
-        'https://700f-196-189-17-92.ngrok-free.app/restaurant/menus?restaurantId=${widget.restaurantId}');
+        'https://ac7b-196-188-77-203.ngrok-free.app/restaurant/menus?restaurantId=${widget.restaurantId}');
 
     try {
       final response = await http.get(url);

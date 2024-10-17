@@ -6,11 +6,14 @@
         <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+
 
     <application
         android:label="food_delivery_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/food"
+        android:icon="@mipmap/ic_launcher"
         android:hardwareAccelerated="true"> <!-- Ensures hardware acceleration across the app -->
 
         <activity

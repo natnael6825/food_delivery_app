@@ -19,7 +19,7 @@ class _VideoStreamingPageState extends State<VideoStreamingPage> {
 
   // Function to launch the streamer page using the `url_launcher`
   Future<void> _launchStreamerPage() async {
-    final String url = 'https://streamerpage.onrender.com/index.html?orderId=${widget.orderId}';
+    final String url = 'https://viewerpage.onrender.com/index.html?orderId=${widget.orderId}';
     
     // Check if the URL can be launched, and launch it
     if (await canLaunch(url)) {

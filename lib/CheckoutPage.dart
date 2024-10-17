@@ -83,7 +83,7 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
 
       for (var item in widget.cartItems) {
         final response = await http.post(
-          Uri.parse('https://96a1-196-189-19-20.ngrok-free.app/orders/createOrder'),
+          Uri.parse('https://ac7b-196-188-77-203.ngrok-free.app/orders/createOrder'),
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer $token"
@@ -108,7 +108,7 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
       if (_selectedPaymentMethod == 'Mobile Banking') {
         final paymentResponse = await http.post(
           Uri.parse(
-              'https://96a1-196-189-19-20.ngrok-free.app/api/transaction/createPayment'),
+              'https://ac7b-196-188-77-203.ngrok-free.app/api/transaction/createPayment'),
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer $token"
@@ -162,7 +162,7 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
       while (true) {
         final response = await http.get(
           Uri.parse(
-              'https://96a1-196-189-19-20.ngrok-free.app/api/transaction/checkpayment?tx_ref=$txRef'),
+              'https://ac7b-196-188-77-203.ngrok-free.app/api/transaction/checkpayment?tx_ref=$txRef'),
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer ${await _storage.read(key: 'token')}",
