@@ -34,7 +34,7 @@ class _OrdersPageState extends State<OrdersPage> {
     }
 
     final response = await http.get(
-      Uri.parse('https://ac7b-196-188-77-203.ngrok-free.app/user/getOrdersByUser'),
+      Uri.parse('https://food-delivery-backend-uls4.onrender.com/user/getOrdersByUser'),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token"

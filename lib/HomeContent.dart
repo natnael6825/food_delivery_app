@@ -24,7 +24,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Future<void> fetchRestaurants() async {
-    final url = Uri.parse('https://ac7b-196-188-77-203.ngrok-free.app/restaurant/restaurants'); // Replace with your API URL
+    final url = Uri.parse('https://food-delivery-backend-uls4.onrender.com/restaurant/restaurants'); // Replace with your API URL
 
     try {
       final response = await http.get(url);

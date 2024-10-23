@@ -17,6 +17,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   File? _selectedImage;
+  String? _profileImageUrl;
   bool _isLoading = false;
 
   @override
@@ -36,7 +37,8 @@ class _ProfilePageState extends State<ProfilePage> {
       _isLoading = true;
     });
 
-    String apiUrl = 'https://yourapi.com/user/profile'; // Replace with actual API URL
+    String apiUrl =
+        'https://food-delivery-backend-uls4.onrender.com/user/profile'; // Replace with actual API URL
     try {
       final response = await http.get(
         Uri.parse(apiUrl),
@@ -46,22 +48,37 @@ class _ProfilePageState extends State<ProfilePage> {
         },
       );
 
+      print("--------------------" + response.body); // Debugging response
+
       if (response.statusCode == 200) {
         final userData = jsonDecode(response.body);
+
+        // Debugging fields
+        print('Full Name: ${userData['fullName']}');
+        print('Phone: ${userData['phone']}');
+        print('Profile Image URL: ${userData['image']}');
+
         setState(() {
-          _fullNameController.text = userData['fullName'];
-          _phoneController.text = userData['phone'];
+          _fullNameController.text = userData['fullName'] ?? 'No name provided';
+          _phoneController.text = userData['phone'] ?? 'No phone provided';
+          _profileImageUrl = userData['image'] ?? '';
           _isLoading = false;
         });
       } else {
+        print('Failed to load profile: ${response.statusCode}');
+        print('Response body: ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load profile.')),
+        );
         _logout(context);
       }
     } catch (e) {
+      print('Error loading profile: $e'); // Debugging error
       setState(() {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading profile')),
+        SnackBar(content: Text('Error loading profile.')),
       );
     }
   }
@@ -86,10 +103,11 @@ class _ProfilePageState extends State<ProfilePage> {
       _isLoading = true;
     });
 
-    String apiUrl = 'https://yourapi.com/user/profileupdate'; // Replace with actual API URL
+    String apiUrl =
+        'https://food-delivery-backend-uls4.onrender.com/user/profileupdate'; // Replace with actual API URL
     var request = http.MultipartRequest('PUT', Uri.parse(apiUrl));
     request.headers['Authorization'] = 'Bearer $token';
-    
+
     request.fields['fullName'] = _fullNameController.text;
     request.fields['phone'] = _phoneController.text;
 
@@ -104,11 +122,14 @@ class _ProfilePageState extends State<ProfilePage> {
       if (response.statusCode == 200) {
         setState(() {
           _isLoading = false;
+          _selectedImage = null; // Clear the selected image after update
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Profile updated successfully!')),
         );
+        _loadUserProfile(); // Reload user profile after update
       } else {
+        print('Failed to update profile: ${response.statusCode}');
         setState(() {
           _isLoading = false;
         });
@@ -117,17 +138,19 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       }
     } catch (e) {
+      print('Error updating profile: $e'); // Debugging error
       setState(() {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred.')),
+        SnackBar(content: Text('An error occurred while updating the profile.')),
       );
     }
   }
 
   Future<void> _selectImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _selectedImage = File(pickedFile.path);
@@ -191,28 +214,62 @@ class _ProfilePageState extends State<ProfilePage> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : Column(
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Center content vertically
+              crossAxisAlignment:
+                  CrossAxisAlignment.center, // Center content horizontally
               children: [
-                SizedBox(height: 20),
-                GestureDetector(
-                  onTap: _selectImage,
-                  child: CircleAvatar(
-                    radius: 45,
-                    backgroundImage: _selectedImage != null
-                        ? FileImage(_selectedImage!)
-                        : AssetImage('assets/placeholder.png') as ImageProvider,
-                    child: Icon(Icons.camera_alt, color: Colors.white),
-                  ),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundImage: _selectedImage != null
+                          ? FileImage(_selectedImage!)
+                          : _profileImageUrl != null &&
+                                  _profileImageUrl!.isNotEmpty &&
+                                  Uri.tryParse(_profileImageUrl!) != null
+                              ? NetworkImage(_profileImageUrl!)
+                              : AssetImage('assets/4.png') as ImageProvider,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _selectImage,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.grey,
+                          child: Icon(Icons.camera_alt, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
-                Text(_fullNameController.text, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                Text(_phoneController.text, style: TextStyle(color: Colors.grey)),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => _logout(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF652023),
+                Text(
+                  _fullNameController.text.isNotEmpty
+                      ? _fullNameController.text
+                      : 'No name provided',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  _phoneController.text.isNotEmpty
+                      ? _phoneController.text
+                      : 'Phone not provided',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                SizedBox(height: 30), // Spacing between the text and the button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                  child: ElevatedButton(
+                    onPressed: () => _logout(context),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize:
+                          Size(double.infinity, 50), // Full-width button
+                      backgroundColor: Color(0xFF652023),
+                    ),
+                    child: Text('Logout'),
                   ),
-                  child: Text('Logout'),
                 ),
               ],
             ),
