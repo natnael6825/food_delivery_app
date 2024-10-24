@@ -58,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Login successful')),
         );
-
+ 
         // Store the token
         await _storage.write(key: 'token', value: responseBody['token']);
 

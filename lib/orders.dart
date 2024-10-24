@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'orderdetilpage.dart'; // Import the new page
+import 'login.dart'; // Import the login page for logout
+import 'orderdetilpage.dart'; // Import the order details page
 
 class OrdersPage extends StatefulWidget {
   @override
@@ -24,44 +25,63 @@ class _OrdersPageState extends State<OrdersPage> {
   Future<void> _fetchUserOrders() async {
     String? token = await _storage.read(key: 'token');
     if (token == null) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User not authenticated')),
-      );
+      _logout(); // Logout if no token is found
       return;
     }
 
-    final response = await http.get(
-      Uri.parse(
-          'https://e6e4-196-189-16-22.ngrok-free.app/user/getOrdersByUser'),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token"
-      },
-    );
-    print(response.body);
-    if (response.statusCode == 200) {
-      final responseBody = jsonDecode(response.body);
-      setState(() {
-        _orders =
-            responseBody.reversed.toList(); // Reverse the order of the list
-        _isLoading = false;
-      });
-    } else if (response.statusCode == 404) {
-      setState(() {
-        _orders = []; // No orders found
-        _isLoading = false;
-      });
-    } else {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'https://food-delivery-backend-uls4.onrender.com/user/getOrdersByUser'),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+
+     
+
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+        setState(() {
+          _orders =
+              responseBody.reversed.toList(); // Reverse the order of the list
+          _isLoading = false;
+        });
+      } else if (response.statusCode == 401) {
+        _logout(); // Logout if the token is invalid or expired
+      } else if (response.statusCode == 404) {
+        setState(() {
+          _orders = []; // No orders found
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load orders')),
+        );
+      }
+    } catch (error) {
       setState(() {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load orders')),
+        SnackBar(content: Text('An error occurred: $error')),
       );
     }
+  }
+
+  // Method to logout and redirect to the login page
+  Future<void> _logout() async {
+    await _storage.delete(key: 'token'); // Delete the token from secure storage
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+          builder: (context) => LoginPage()), // Navigate to login page
+      (route) => false, // Remove all previous routes
+    );
   }
 
   @override
@@ -81,7 +101,8 @@ class _OrdersPageState extends State<OrdersPage> {
                     final order = _orders[index];
                     return ListTile(
                       title: Text('Order #${order['id']}'),
-                      subtitle: Text('Total: ${order['totalPrice']} ETB'),
+                      subtitle: Text(
+                          'Total: ${order['totalPrice'].toStringAsFixed(2)} ETB'),
                       onTap: () {
                         Navigator.push(
                           context,

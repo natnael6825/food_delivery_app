@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:food_delivery_app/HomeContent.dart';
-
-import 'orderdetilpage.dart';
+import 'delivery_tracking_page.dart'; // Import the DeliveryTrackingPage
 import 'video_streaming_view_page.dart';
 
 class TrackingOptionPage extends StatelessWidget {
   final String orderId; // The Order ID for identifying the order
 
   TrackingOptionPage({required this.orderId});
-  
-  get cartItems => null;
 
   @override
   Widget build(BuildContext context) {
@@ -23,11 +19,11 @@ class TrackingOptionPage extends StatelessWidget {
           children: [
             ElevatedButton(
               onPressed: () {
-                // Navigate to the map tracking page
+                // Navigate to the DeliveryTrackingPage to track the delivery agent's location
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => HomeContent(cartItems: cartItems) // Assuming this is your map page
+                    builder: (context) => DeliveryTrackingPage(orderId: orderId),
                   ),
                 );
               },

@@ -31,7 +31,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadUserProfile() async {
     String? token = await _storage.read(key: 'token');
     if (token == null) {
-      _logout(context);
+      _logout(context); // Logout if token is null
       return;
     }
 
@@ -45,7 +45,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $token', // Send the token in the header
         },
       );
 
@@ -59,11 +59,13 @@ class _ProfilePageState extends State<ProfilePage> {
           _profileImageUrl = userData['image'] ?? '';
           _isLoading = false;
         });
+      } else if (response.statusCode == 401) {
+        _logout(context); // Logout if token is invalid or expired
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load profile.')),
         );
-        _logout(context);
+        _logout(context); // Logout on other errors as well
       }
     } catch (e) {
       print('Error loading profile: $e');
@@ -77,71 +79,70 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _updateProfile() async {
-  String? token = await _storage.read(key: 'token');
-  if (token == null) {
-    _logout(context);
-    return;
-  }
+    String? token = await _storage.read(key: 'token');
+    if (token == null) {
+      _logout(context);
+      return;
+    }
 
-  setState(() {
-    _isLoading = true;
-  });
+    setState(() {
+      _isLoading = true;
+    });
 
-  String apiUrl = 'https://e6e4-196-189-16-22.ngrok-free.app/user/profileupdate';
-  var request = http.MultipartRequest('PUT', Uri.parse(apiUrl));
-  request.headers['Authorization'] = 'Bearer $token';
+    String apiUrl = 'https://food-delivery-backend-uls4.onrender.com/user/profileupdate';
+    var request = http.MultipartRequest('PUT', Uri.parse(apiUrl));
+    request.headers['Authorization'] = 'Bearer $token'; // Send the token in the header
 
-  // Debugging logs to ensure correct data is being sent
-  print('Updating profile...');
-  print('Full Name: ${_fullNameController.text}');
-  print('Phone: ${_phoneController.text}');
+    print('Updating profile...');
+    print('Full Name: ${_fullNameController.text}');
+    print('Phone: ${_phoneController.text}');
   
-  request.fields['fullName'] = _fullNameController.text;
-  request.fields['phone'] = _phoneController.text;
+    request.fields['fullName'] = _fullNameController.text;
+    request.fields['phone'] = _phoneController.text;
 
-  // If an image has been selected, add it to the request
-  if (_selectedImage != null) {
-    request.files.add(
-      await http.MultipartFile.fromPath('imagefile', _selectedImage!.path),
-    );
-    print('Image added to request.');
-  }
-
-  try {
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString(); // Get the full response body
-    print('Response Status Code: ${response.statusCode}');
-    print('Response Body: $responseBody'); // Print the response body for debugging
-
-    if (response.statusCode == 200) {
-      setState(() {
-        _isLoading = false;
-        _selectedImage = null; // Clear the selected image after update
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profile updated successfully!')),
+    // Add the selected image to the request if it exists
+    if (_selectedImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath('imagefile', _selectedImage!.path),
       );
-      _loadUserProfile(); // Reload user profile after update
-    } else {
-      // Handle non-200 status codes
+      print('Image added to request.');
+    }
+
+    try {
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      print('Response Status Code: ${response.statusCode}');
+      print('Response Body: $responseBody');
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _isLoading = false;
+          _selectedImage = null; // Clear the selected image after update
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Profile updated successfully!')),
+        );
+        _loadUserProfile(); // Reload the profile after updating
+      } else if (response.statusCode == 401) {
+        _logout(context); // Logout if token is invalid or expired
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update profile.')),
+        );
+      }
+    } catch (e) {
+      print('Error updating profile: $e');
       setState(() {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update profile. ${response.statusCode}')),
+        SnackBar(content: Text('An error occurred while updating the profile.')),
       );
     }
-  } catch (e) {
-    print('Error updating profile: $e'); // Debugging error
-    setState(() {
-      _isLoading = false;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('An error occurred while updating the profile.')),
-    );
   }
-}
-
 
   Future<void> _selectImage() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -153,11 +154,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _logout(BuildContext context) async {
-    await _storage.delete(key: 'token');
+    await _storage.delete(key: 'token'); // Delete the token from storage
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => LoginPage()),
-      (route) => false,
+      MaterialPageRoute(builder: (context) => LoginPage()), // Navigate to login page
+      (route) => false, // Remove all previous routes
     );
   }
 

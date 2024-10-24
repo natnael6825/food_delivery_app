@@ -4,9 +4,8 @@ import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter/services.dart';
-
 import 'orders.dart';
+import 'login.dart'; // Import the login page for logout
 
 class CheckoutPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -66,159 +65,186 @@ class _CheckoutPageState extends State<CheckoutPage>
   }
 
   Future<void> _confirmOrder() async {
-  setState(() {
-    _isLoading = true; // Show loading screen
-  });
+    setState(() {
+      _isLoading = true; // Show loading screen
+    });
 
-  try {
-    String? token = await _storage.read(key: 'token');
+    try {
+      String? token = await _storage.read(key: 'token');
 
-    if (token == null) {
-      throw Exception('User not authenticated');
-    }
+      if (token == null) {
+        throw Exception('User not authenticated');
+      }
 
-    _txRef = _uuid.v4(); // Create a unique transaction reference
-    await _storage.write(key: 'ongoing_tx_ref', value: _txRef);
+      _txRef = _uuid.v4(); // Create a unique transaction reference (once)
+      await _storage.write(key: 'ongoing_tx_ref', value: _txRef);
 
-    final totalAmount = _calculateTotal();
+      final totalAmount = _calculateTotal(); // Grand total amount for all menu items
 
-    for (var item in widget.cartItems) {
-      final orderBody = {
-        'tx_ref': _txRef,
-        'menuId': item['id'],
-        'restaurantId': item['restaurantId'],
-        'quantity': item['quantity'],
-        'address': widget.address, // Adding address
-        'latitude': widget.latitude, // Adding latitude
-        'longitude': widget.longitude, // Adding longitude
-        'totalPrice': totalAmount, // Adding totalPrice to be consistent with the payment
-      };
+      // Service charge and delivery fee
+      final double serviceCharge = 39.20;
+      final double deliveryFee = 55.00;
+
+      // Calculate the number of items in the cart to distribute the service charge and delivery fee
+      int totalQuantity = 0;
+      for (var item in widget.cartItems) {
+        totalQuantity += item['quantity'] as int;
+      }
+
+      // Loop to save all items with their own calculated total price
+      for (var item in widget.cartItems) {
+        final double itemPrice = (item['price'] as double);
+        final int itemQuantity = (item['quantity'] as int);
+        final double itemTotalPrice = itemPrice * itemQuantity;
+        final double itemServiceCharge = (serviceCharge / totalQuantity) * itemQuantity;
+        final double itemDeliveryFee = (deliveryFee / totalQuantity) * itemQuantity;
+        final double itemFinalTotal = itemTotalPrice + itemServiceCharge + itemDeliveryFee;
+
+        final orderBody = {
+          'tx_ref': _txRef,
+          'menuId': item['id'],
+          'restaurantId': item['restaurantId'],
+          'quantity': itemQuantity,
+          'address': widget.address,
+          'latitude': widget.latitude,
+          'longitude': widget.longitude,
+          'totalPrice': itemFinalTotal,
+        };
+
+        if (_selectedPaymentMethod == 'Cash on Delivery') {
+          orderBody['status'] = 'waiting for delivery';
+        } else {
+          orderBody['status'] = 'pending';
+        }
+
+        // Send order data to the backend for each item
+        final response = await http.post(
+          Uri.parse('https://food-delivery-backend-uls4.onrender.com/user/createOrder'),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token"
+          },
+          body: jsonEncode(orderBody),
+        );
+
+        if (response.statusCode == 401) {
+          _logout(); // Token is expired or invalid, log out the user
+          return;
+        }
+
+        if (response.statusCode != 201) {
+          throw Exception('Order saving failed for an item');
+        }
+      }
 
       if (_selectedPaymentMethod == 'Cash on Delivery') {
-        orderBody['status'] = 'waiting for delivery';
-      } else {
-        orderBody['status'] = 'pending';  // Add "pending" status for other methods
-      }
-
-      // Send order data to the backend
-      final response = await http.post(
-        Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/orders/createOrder'),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token"
-        },
-        body: jsonEncode(orderBody),
-      );
-
-      if (response.statusCode != 201) {
-        throw Exception('Order saving failed for an item');
-      }
-    }
-
-    if (_selectedPaymentMethod == 'Cash on Delivery') {
-      // Save the transaction for Cash on Delivery
-      final transactionResponse = await http.post(
-        Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/api/transaction/saveCashOnDeliveryTransaction'),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          'tx_ref': _txRef,
-          'amount': totalAmount,
-          'currency': 'ETB',
-          'email': 'user@example.com',  // Replace with actual user email
-        }),
-      );
-
-      if (transactionResponse.statusCode == 201) {
-        setState(() {
-          _isLoading = false; // Hide loading screen
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Order confirmed with Cash on Delivery')),
+        final transactionResponse = await http.post(
+          Uri.parse('https://food-delivery-backend-uls4.onrender.com/api/transaction/saveCashOnDeliveryTransaction'),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token",
+          },
+          body: jsonEncode({
+            'tx_ref': _txRef,
+            'amount': totalAmount,
+            'currency': 'ETB',
+            'email': 'user@example.com',
+          }),
         );
 
-        // Navigate to OrdersPage after the order is confirmed
-        widget.cartItems.clear();
-        Navigator.of(context).pop(); // Pop CheckoutPage
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => OrdersPage()),
-        );
-      } else {
-        throw Exception('Transaction saving failed');
-      }
-    } else {
-      // Handle Mobile Banking payment flow (as before)
-      final paymentResponse = await http.post(
-        Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/api/transaction/createPayment'),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token"
-        },
-        body: jsonEncode({
-          'tx_ref': _txRef,
-          'amount': totalAmount.toString(),
-          'currency': 'ETB',
-          'email': 'user@example.com',
-        }),
-      );
+        if (transactionResponse.statusCode == 401) {
+          _logout(); // Token is expired or invalid, log out the user
+          return;
+        }
 
-      if (paymentResponse.statusCode == 200) {
-        final responseBody = jsonDecode(paymentResponse.body);
-        final paymentUrl = responseBody['data']['checkout_url'];
-        if (await canLaunch(paymentUrl)) {
-          await launch(paymentUrl);
-          _checkPaymentStatus(_txRef!); // Start checking payment status
+        if (transactionResponse.statusCode == 201) {
+          setState(() {
+            _isLoading = false; // Hide loading screen
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Order confirmed with Cash on Delivery')),
+          );
+
+          widget.cartItems.clear(); // Clear the cart items after successful order
+
+          // Navigate to OrdersPage
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => OrdersPage()),
+          );
         } else {
-          throw Exception('Could not launch payment URL');
+          throw Exception('Transaction saving failed');
         }
       } else {
-        throw Exception('Payment initiation failed');
+        // Handle Mobile Payment
+        final paymentResponse = await http.post(
+          Uri.parse('https://food-delivery-backend-uls4.onrender.com/api/transaction/createPayment'),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $token"
+          },
+          body: jsonEncode({
+            'tx_ref': _txRef,
+            'amount': totalAmount.toString(),
+            'currency': 'ETB',
+            'email': 's@gmail.com',
+          }),
+        );
+
+        if (paymentResponse.statusCode == 401) {
+          _logout(); // Token is expired or invalid, log out the user
+          return;
+        }
+
+        if (paymentResponse.statusCode == 200) {
+          final responseBody = jsonDecode(paymentResponse.body);
+          final paymentUrl = responseBody['data']['checkout_url'];
+          if (await canLaunch(paymentUrl)) {
+            await launch(paymentUrl);
+            _checkPaymentStatus(_txRef!); // Start checking payment status
+          } else {
+            throw Exception('Could not launch payment URL');
+          }
+        } else {
+          throw Exception('Payment initiation failed');
+        }
       }
+    } catch (e) {
+      setState(() {
+        _isLoading = false; // Hide loading screen on error
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     }
-  } catch (e) {
-    setState(() {
-      _isLoading = false; // Hide loading screen on error
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString())),
-    );
   }
-}
-
-
 
   Future<void> _checkPaymentStatus(String txRef) async {
     try {
       while (true) {
         final response = await http.get(
-          Uri.parse(
-              'https://food-delivery-backend-uls4.onrender.com/api/transaction/checkpayment?tx_ref=$txRef'),
+          Uri.parse('https://food-delivery-backend-uls4.onrender.com/api/transaction/checkpayment?tx_ref=$txRef'),
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer ${await _storage.read(key: 'token')}",
           },
         );
 
+        if (response.statusCode == 401) {
+          _logout(); // Token is expired or invalid, log out the user
+          return;
+        }
+
         if (response.statusCode == 200) {
           final responseBody = jsonDecode(response.body);
           if (responseBody['data']['status'] == 'success') {
             setState(() {
-              _isLoading = false; // Hide loading screen
-              widget.cartItems.clear(); // Clear the cart items
+              _isLoading = false;
+              widget.cartItems.clear();
             });
-            await _storage.delete(
-                key: 'ongoing_tx_ref'); // Clear the transaction reference
-
-            // Pop the current page (CheckoutPage)
+            await _storage.delete(key: 'ongoing_tx_ref');
             Navigator.of(context).pop();
-            Navigator.of(context).pop();
-
-            // Navigate to the Orders page using the widget instance
-            Navigator.of(context)
-                .push(MaterialPageRoute(builder: (context) => OrdersPage()));
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) => OrdersPage()));
             return;
           }
         }
@@ -227,17 +253,25 @@ class _CheckoutPageState extends State<CheckoutPage>
           SnackBar(content: Text('Waiting for payment confirmation...')),
         );
 
-        await Future.delayed(
-            Duration(seconds: 5)); // Wait for 5 seconds before checking again
+        await Future.delayed(Duration(seconds: 5));
       }
     } catch (e) {
       setState(() {
-        _isLoading = false; // Hide loading screen on error
+        _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error checking payment status')),
       );
     }
+  }
+
+  Future<void> _logout() async {
+    await _storage.delete(key: 'token'); // Delete the token from secure storage
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginPage()), // Navigate back to login
+      (route) => false,
+    );
   }
 
   @override

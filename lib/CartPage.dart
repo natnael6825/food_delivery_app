@@ -54,7 +54,8 @@ class _CartPageState extends State<CartPage> {
     return false;
   }
 
-  Future<void> _getCurrentLocation() async {
+ Future<void> _getCurrentLocation() async {
+  try {
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -69,9 +70,19 @@ class _CartPageState extends State<CartPage> {
       _latitude = position.latitude;
       _longitude = position.longitude;
       Placemark place = placemarks[0];
-      _currentAddress = "${place.locality}, ${place.subAdministrativeArea}, ${place.country}";
+      
+      // Format the full address with more details
+      _currentAddress =
+          "${place.street}, ${place.subLocality}, ${place.locality}, ${place.subAdministrativeArea}, ${place.administrativeArea}, ${place.postalCode}, ${place.country}";
     });
+  } catch (e) {
+    setState(() {
+      _currentAddress = "Unable to fetch location details";
+    });
+    print('Error fetching location: $e');
   }
+}
+
 
   double _calculateSubtotal() {
     double subtotal = 0.0;

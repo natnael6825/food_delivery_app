@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lottie/lottie.dart';
-
+import 'login.dart'; // Import the login page for logout
 import 'tracking_option_page.dart';
 
 class OrderDetailPage extends StatefulWidget {
@@ -18,7 +18,10 @@ class OrderDetailPage extends StatefulWidget {
 class _OrderDetailPageState extends State<OrderDetailPage> {
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   String _orderStatus = '';
-  String? _imageUrl; // Variable to store image URL from the response
+  String? _imageUrl;
+  String? _address;
+  double? _totalPrice;
+  int? _quantity;
   bool _isLoading = true;
   bool _showTrackingButton = false;
 
@@ -32,51 +35,71 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Future<void> _fetchOrderStatus() async {
     String? token = await _storage.read(key: 'token');
     if (token == null) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User not authenticated')),
-      );
+      _logout(); // Logout if no token is found
       return;
     }
 
-    final response = await http.post(
-      Uri.parse(
-          'https://food-delivery-backend-uls4.onrender.com/user/getOrdersById?Id=${widget.order['id']}'),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token"
-      },
-    );
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://food-delivery-backend-uls4.onrender.com/user/getOrdersById?Id=${widget.order['id']}'),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> responseBody = jsonDecode(response.body);
-
-      if (responseBody.isNotEmpty) {
-        final orderData = responseBody[0];
-        setState(() {
-          _orderStatus = orderData['status'];
-          _imageUrl = orderData['imagefile']; // Assign the image URL
-          _isLoading = false;
-          _showTrackingButton = _orderStatus == 'delivering';
-        });
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> responseBody = jsonDecode(response.body);
+        if (responseBody.isNotEmpty) {
+          final orderData = responseBody[0];
+          setState(() {
+            _orderStatus = orderData['status'];
+            _imageUrl = orderData['imagefile'];
+            _address = orderData['address'];
+            _totalPrice = orderData['totalPrice'];
+            _quantity = orderData['quantity'];
+            _isLoading = false;
+            _showTrackingButton = _orderStatus == 'delivering';
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Order not found')),
+          );
+        }
+      } else if (response.statusCode == 401) {
+        _logout(); // Logout if token is invalid or expired
       } else {
         setState(() {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Order not found')),
+          SnackBar(content: Text('Failed to load order status')),
         );
       }
-    } else {
+    } catch (e) {
       setState(() {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load order status')),
+        SnackBar(content: Text('An error occurred: $e')),
       );
     }
+  }
+
+  // Method to logout and redirect to the login page
+  Future<void> _logout() async {
+    await _storage.delete(key: 'token'); // Delete the token from secure storage
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+          builder: (context) => LoginPage()), // Navigate to login page
+      (route) => false, // Remove all previous routes
+    );
   }
 
   // Auto-refresh the order status every 10 seconds
@@ -104,7 +127,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       fit: BoxFit.cover,
                     )
                   : Icon(
-                      Icons.radio_button_unchecked, 
+                      Icons.radio_button_unchecked,
                       color: Colors.grey,
                     ),
               Container(
@@ -149,8 +172,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       Image.network(
                         _imageUrl!,
                         width: double.infinity,
-                        height: 200, // Increase height for landscape effect
-                        fit: BoxFit.cover, // Ensure the image covers the space
+                        height: 200,
+                        fit: BoxFit.cover,
                       )
                     else
                       Icon(
@@ -160,8 +183,21 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       ),
                     SizedBox(height: 8),
                     Text(
-                      'INVOICE : ${widget.order['tx_ref']}',
+                      'Order : ${widget.order['id']}',
                       style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 16),
+                    // Display additional order details
+                
+                    SizedBox(height: 8),
+                    Text(
+                      'Total Price: \$${_totalPrice?.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Quantity: $_quantity',
+                      style: TextStyle(fontSize: 16),
                     ),
                     SizedBox(height: 30),
                     _buildOrderStatusStep(
@@ -184,27 +220,28 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 20.0),
                       child: ElevatedButton(
-  onPressed: _showTrackingButton
-      ? () {
-          // Navigate to the TrackingOptionPage
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TrackingOptionPage(orderId: widget.order['id'].toString()), // Pass the orderId
-            ),
-          );
-        }
-      : null,
-  style: ElevatedButton.styleFrom(
-    minimumSize: Size(double.infinity, 50), // Set width to infinity
-    backgroundColor: _showTrackingButton ? Colors.blue : Colors.grey,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-    ),
-  ),
-  child: Text('TRACKING'),
-),
-
+                        onPressed: _showTrackingButton
+                            ? () {
+                                // Navigate to the TrackingOptionPage
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => TrackingOptionPage(
+                                        orderId: widget.order['id'].toString()),
+                                  ),
+                                );
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: Size(double.infinity, 50),
+                          backgroundColor:
+                              _showTrackingButton ? Colors.blue : Colors.grey,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: Text('TRACKING'),
+                      ),
                     ),
                   ],
                 ),

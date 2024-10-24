@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart'; // For getting the current location
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Secure storage for token
+import 'login.dart'; // Import LoginPage for logout navigation
 import 'map_screen.dart';
 import 'MenuPage.dart'; // Import the MenuPage
 
@@ -19,11 +21,22 @@ class _HomeContentState extends State<HomeContent> {
   bool isLoading = true;
   double? userLatitude;
   double? userLongitude;
+  final FlutterSecureStorage _storage = FlutterSecureStorage(); // Add secure storage for token
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocationAndFetchRestaurants();
+  }
+
+  // Function to handle logout and remove token
+  Future<void> _logout() async {
+    await _storage.delete(key: 'token'); // Delete the token from secure storage
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginPage()), // Navigate back to login
+      (route) => false,
+    );
   }
 
   // Function to get the user's current location
@@ -59,7 +72,8 @@ class _HomeContentState extends State<HomeContent> {
     }
 
     if (permission == LocationPermission.deniedForever) {
-      return Future.error('Location permissions are permanently denied, we cannot request permissions.');
+      return Future.error(
+          'Location permissions are permanently denied, we cannot request permissions.');
     }
 
     return await Geolocator.getCurrentPosition();
@@ -67,10 +81,25 @@ class _HomeContentState extends State<HomeContent> {
 
   // Fetch restaurants based on the user's current latitude and longitude
   Future<void> fetchRestaurants(double latitude, double longitude) async {
-    final url = Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/restaurant/restaurants?latitude=$latitude&longitude=$longitude'); // Pass latitude and longitude as query parameters
+    final url = Uri.parse(
+        'https://food-delivery-backend-uls4.onrender.com/restaurant/restaurants?latitude=$latitude&longitude=$longitude'); // Pass latitude and longitude as query parameters
 
     try {
-      final response = await http.get(url);
+      // Retrieve the token from secure storage
+      String? token = await _storage.read(key: 'token');
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No token found. Please log in again.')),
+        );
+        _logout();
+        return;
+      }
+
+      // Attach the token to the headers
+      final response = await http.get(url, headers: {
+        'Authorization': 'Bearer $token', // Attach token to headers
+      });
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -78,8 +107,14 @@ class _HomeContentState extends State<HomeContent> {
           restaurants = data;
           isLoading = false;
         });
+      } else if (response.statusCode == 401) {
+        // Token is expired or invalid, log out the user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Session expired. Please log in again.')),
+        );
+        _logout(); // Call the logout function to remove token and redirect to login
       } else {
-        // Handle errors
+        // Handle other errors
         setState(() {
           isLoading = false;
         });
@@ -102,7 +137,8 @@ class _HomeContentState extends State<HomeContent> {
     setState(() {
       isLoading = true;
     });
-    await fetchRestaurants(userLatitude!, userLongitude!); // Use stored lat/long for refresh
+    await fetchRestaurants(
+        userLatitude!, userLongitude!); // Use stored lat/long for refresh
   }
 
   @override
@@ -156,7 +192,8 @@ class _HomeContentState extends State<HomeContent> {
                               itemCount: restaurants.length,
                               itemBuilder: (context, index) {
                                 final restaurant = restaurants[index];
-                                final imageUrl = restaurant['image']; // Use the provided image URL
+                                final imageUrl = restaurant[
+                                    'image']; // Use the provided image URL
                                 return GestureDetector(
                                   onTap: () {
                                     Navigator.push(
@@ -164,8 +201,9 @@ class _HomeContentState extends State<HomeContent> {
                                       MaterialPageRoute(
                                         builder: (context) => MenuPage(
                                           restaurantId: restaurant['id'],
-                                          cartItems: widget.cartItems, 
-                                          restaurantImageUrl: imageUrl, // Pass the correct image URL
+                                          cartItems: widget.cartItems,
+                                          restaurantImageUrl:
+                                              imageUrl, // Pass the correct image URL
                                         ),
                                       ),
                                     );
@@ -211,18 +249,22 @@ class _HomeContentState extends State<HomeContent> {
                     ),
                     GridView.builder(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,  // Number of columns in the grid
-                        crossAxisSpacing: 10.0,  // Spacing between columns
-                        mainAxisSpacing: 10.0,  // Spacing between rows
-                        childAspectRatio: 1.0,  // Aspect ratio of the items (width/height)
+                        crossAxisCount: 2, // Number of columns in the grid
+                        crossAxisSpacing: 10.0, // Spacing between columns
+                        mainAxisSpacing: 10.0, // Spacing between rows
+                        childAspectRatio:
+                            1.0, // Aspect ratio of the items (width/height)
                       ),
-                      shrinkWrap: true,  // Makes the GridView only take as much space as its content needs
-                      physics: NeverScrollableScrollPhysics(), // Disables the GridView's own scrolling
+                      shrinkWrap:
+                          true, // Makes the GridView only take as much space as its content needs
+                      physics:
+                          NeverScrollableScrollPhysics(), // Disables the GridView's own scrolling
                       padding: const EdgeInsets.all(16.0),
                       itemCount: restaurants.length,
                       itemBuilder: (context, index) {
                         final restaurant = restaurants[index];
-                        final imageUrl = restaurant['image']; // Use the provided image URL
+                        final imageUrl =
+                            restaurant['image']; // Use the provided image URL
                         return GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -230,8 +272,9 @@ class _HomeContentState extends State<HomeContent> {
                               MaterialPageRoute(
                                 builder: (context) => MenuPage(
                                   restaurantId: restaurant['id'],
-                                  cartItems: widget.cartItems, 
-                                  restaurantImageUrl: imageUrl, // Pass the correct image URL
+                                  cartItems: widget.cartItems,
+                                  restaurantImageUrl:
+                                      imageUrl, // Pass the correct image URL
                                 ),
                               ),
                             );
@@ -275,10 +318,13 @@ class SpecialOrderCard extends StatelessWidget {
                 aspectRatio: 1.5, // Safe aspect ratio to avoid NaN errors
                 child: Image.network(
                   imagePath,
-                  fit: BoxFit.cover, // Ensures the image covers the available space without distortion
-                  width: double.infinity, // Ensures the image takes up the full width of the container
+                  fit: BoxFit
+                      .cover, // Ensures the image covers the available space without distortion
+                  width: double
+                      .infinity, // Ensures the image takes up the full width of the container
                   errorBuilder: (context, error, stackTrace) {
-                    return Image.asset('assets/burger.png', fit: BoxFit.cover, width: double.infinity);
+                    return Image.asset('assets/burger.png',
+                        fit: BoxFit.cover, width: double.infinity);
                   },
                 ),
               ),
@@ -293,7 +339,8 @@ class SpecialOrderCard extends StatelessWidget {
                   color: const Color(0xFF652023),
                 ),
                 maxLines: 1, // Limit to a single line
-                overflow: TextOverflow.ellipsis, // Truncate text if it's too long
+                overflow:
+                    TextOverflow.ellipsis, // Truncate text if it's too long
               ),
             ),
           ],
@@ -322,15 +369,19 @@ class TopRestaurantCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(10), // Ensures the image respects the container's round corners
+              borderRadius: BorderRadius.circular(
+                  10), // Ensures the image respects the container's round corners
               child: AspectRatio(
                 aspectRatio: 1.5, // Safe aspect ratio to avoid NaN errors
                 child: Image.network(
                   imagePath,
-                  fit: BoxFit.cover, // Ensures the image covers the available space without distortion
-                  width: double.infinity, // Ensures the image takes up the full width of the container
+                  fit: BoxFit
+                      .cover, // Ensures the image covers the available space without distortion
+                  width: double
+                      .infinity, // Ensures the image takes up the full width of the container
                   errorBuilder: (context, error, stackTrace) {
-                    return Image.asset('assets/burger.png', fit: BoxFit.cover, width: double.infinity);
+                    return Image.asset('assets/burger.png',
+                        fit: BoxFit.cover, width: double.infinity);
                   },
                 ),
               ),
@@ -346,7 +397,8 @@ class TopRestaurantCard extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1, // Limit to a single line
-                overflow: TextOverflow.ellipsis, // Truncate text if it's too long
+                overflow:
+                    TextOverflow.ellipsis, // Truncate text if it's too long
               ),
             ),
           ],
