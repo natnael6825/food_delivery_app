@@ -127,7 +127,7 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
             final paymentUrl = responseBody['data']['checkout_url'];
             if (await canLaunch(paymentUrl)) {
               await launch(paymentUrl);
-              _checkPaymentStatus(_txRef!); // Start checking payment status after launching the URL
+              _checkPaymentStatus(_txRef!); // Start checking payment status after launching the  URL
             } else {
               throw Exception('Could not launch payment URL');
             }
