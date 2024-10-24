@@ -16,6 +16,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+
   File? _selectedImage;
   String? _profileImageUrl;
   bool _isLoading = false;
@@ -37,8 +39,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _isLoading = true;
     });
 
-    String apiUrl =
-        'https://food-delivery-backend-uls4.onrender.com/user/profile'; // Replace with actual API URL
+    String apiUrl = 'https://food-delivery-backend-uls4.onrender.com/user/profile';
     try {
       final response = await http.get(
         Uri.parse(apiUrl),
@@ -48,38 +49,106 @@ class _ProfilePageState extends State<ProfilePage> {
         },
       );
 
-      print("--------------------" + response.body); // Debugging response
-
       if (response.statusCode == 200) {
         final userData = jsonDecode(response.body);
-
-        // Debugging fields
-        print('Full Name: ${userData['fullName']}');
-        print('Phone: ${userData['phone']}');
-        print('Profile Image URL: ${userData['image']}');
 
         setState(() {
           _fullNameController.text = userData['fullName'] ?? 'No name provided';
           _phoneController.text = userData['phone'] ?? 'No phone provided';
+          _emailController.text = userData['email'] ?? 'No email provided';
           _profileImageUrl = userData['image'] ?? '';
           _isLoading = false;
         });
       } else {
-        print('Failed to load profile: ${response.statusCode}');
-        print('Response body: ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load profile.')),
         );
         _logout(context);
       }
     } catch (e) {
-      print('Error loading profile: $e'); // Debugging error
+      print('Error loading profile: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading profile.')),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _updateProfile() async {
+  String? token = await _storage.read(key: 'token');
+  if (token == null) {
+    _logout(context);
+    return;
+  }
+
+  setState(() {
+    _isLoading = true;
+  });
+
+  String apiUrl = 'https://e6e4-196-189-16-22.ngrok-free.app/user/profileupdate';
+  var request = http.MultipartRequest('PUT', Uri.parse(apiUrl));
+  request.headers['Authorization'] = 'Bearer $token';
+
+  // Debugging logs to ensure correct data is being sent
+  print('Updating profile...');
+  print('Full Name: ${_fullNameController.text}');
+  print('Phone: ${_phoneController.text}');
+  
+  request.fields['fullName'] = _fullNameController.text;
+  request.fields['phone'] = _phoneController.text;
+
+  // If an image has been selected, add it to the request
+  if (_selectedImage != null) {
+    request.files.add(
+      await http.MultipartFile.fromPath('imagefile', _selectedImage!.path),
+    );
+    print('Image added to request.');
+  }
+
+  try {
+    final response = await request.send();
+    final responseBody = await response.stream.bytesToString(); // Get the full response body
+    print('Response Status Code: ${response.statusCode}');
+    print('Response Body: $responseBody'); // Print the response body for debugging
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _isLoading = false;
+        _selectedImage = null; // Clear the selected image after update
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profile updated successfully!')),
+      );
+      _loadUserProfile(); // Reload user profile after update
+    } else {
+      // Handle non-200 status codes
       setState(() {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading profile.')),
+        SnackBar(content: Text('Failed to update profile. ${response.statusCode}')),
       );
+    }
+  } catch (e) {
+    print('Error updating profile: $e'); // Debugging error
+    setState(() {
+      _isLoading = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('An error occurred while updating the profile.')),
+    );
+  }
+}
+
+
+  Future<void> _selectImage() async {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
     }
   }
 
@@ -92,108 +161,54 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _updateProfile() async {
-    String? token = await _storage.read(key: 'token');
-    if (token == null) {
-      _logout(context);
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    String apiUrl =
-        'https://food-delivery-backend-uls4.onrender.com/user/profileupdate'; // Replace with actual API URL
-    var request = http.MultipartRequest('PUT', Uri.parse(apiUrl));
-    request.headers['Authorization'] = 'Bearer $token';
-
-    request.fields['fullName'] = _fullNameController.text;
-    request.fields['phone'] = _phoneController.text;
-
-    if (_selectedImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('imagefile', _selectedImage!.path),
-      );
-    }
-
-    try {
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        setState(() {
-          _isLoading = false;
-          _selectedImage = null; // Clear the selected image after update
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Profile updated successfully!')),
-        );
-        _loadUserProfile(); // Reload user profile after update
-      } else {
-        print('Failed to update profile: ${response.statusCode}');
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile.')),
-        );
-      }
-    } catch (e) {
-      print('Error updating profile: $e'); // Debugging error
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred while updating the profile.')),
-      );
-    }
-  }
-
-  Future<void> _selectImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
-    }
-  }
-
   void _showEditProfileDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Edit Profile'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _fullNameController,
-                decoration: InputDecoration(labelText: 'Full Name'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Edit Profile'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _fullNameController,
+                      decoration: InputDecoration(labelText: 'Full Name'),
+                    ),
+                    TextField(
+                      controller: _phoneController,
+                      decoration: InputDecoration(labelText: 'Phone'),
+                    ),
+                    TextField(
+                      controller: _emailController,
+                      decoration: InputDecoration(labelText: 'Email'),
+                      enabled: false, // Email should not be editable
+                    ),
+                    SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: _selectImage,
+                      child: Text('Select Profile Picture'),
+                    ),
+                  ],
+                ),
               ),
-              TextField(
-                controller: _phoneController,
-                decoration: InputDecoration(labelText: 'Phone'),
-              ),
-              ElevatedButton(
-                onPressed: _selectImage,
-                child: Text('Select Profile Picture'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _updateProfile();
-              },
-              child: Text('Save'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _updateProfile();
+                  },
+                  child: Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -214,59 +229,44 @@ class _ProfilePageState extends State<ProfilePage> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center, // Center content vertically
-              crossAxisAlignment:
-                  CrossAxisAlignment.center, // Center content horizontally
               children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: _selectedImage != null
-                          ? FileImage(_selectedImage!)
-                          : _profileImageUrl != null &&
-                                  _profileImageUrl!.isNotEmpty &&
-                                  Uri.tryParse(_profileImageUrl!) != null
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(height: 40),
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
                               ? NetworkImage(_profileImageUrl!)
-                              : AssetImage('assets/4.png') as ImageProvider,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _selectImage,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.grey,
-                          child: Icon(Icons.camera_alt, color: Colors.white),
+                              : AssetImage('assets/default_profile.png') as ImageProvider,
                         ),
-                      ),
+                        SizedBox(height: 10),
+                        Text(
+                          _fullNameController.text.isNotEmpty
+                              ? _fullNameController.text
+                              : 'No name provided',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          _phoneController.text.isNotEmpty
+                              ? _phoneController.text
+                              : 'Phone not provided',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                SizedBox(height: 10),
-                Text(
-                  _fullNameController.text.isNotEmpty
-                      ? _fullNameController.text
-                      : 'No name provided',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  _phoneController.text.isNotEmpty
-                      ? _phoneController.text
-                      : 'Phone not provided',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                SizedBox(height: 30), // Spacing between the text and the button
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                  padding: const EdgeInsets.all(20.0),
                   child: ElevatedButton(
                     onPressed: () => _logout(context),
                     style: ElevatedButton.styleFrom(
-                      minimumSize:
-                          Size(double.infinity, 50), // Full-width button
-                      backgroundColor: Color(0xFF652023),
+                      minimumSize: Size(double.infinity, 50),
+                      backgroundColor: Colors.redAccent,
                     ),
                     child: Text('Logout'),
                   ),

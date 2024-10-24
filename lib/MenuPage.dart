@@ -85,6 +85,7 @@ class _MenuPageState extends State<MenuPage> {
           IconButton(
             icon: Icon(Icons.shopping_cart),
             onPressed: _openCart,
+            color: Colors.white,
           ),
         ],
       ),

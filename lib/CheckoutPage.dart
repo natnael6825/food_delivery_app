@@ -25,7 +25,8 @@ class CheckoutPage extends StatefulWidget {
   _CheckoutPageState createState() => _CheckoutPageState();
 }
 
-class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver {
+class _CheckoutPageState extends State<CheckoutPage>
+    with WidgetsBindingObserver {
   String _selectedPaymentMethod = 'Cash on Delivery'; // Default payment method
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   final Uuid _uuid = Uuid();
@@ -65,97 +66,129 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
   }
 
   Future<void> _confirmOrder() async {
-    setState(() {
-      _isLoading = true; // Show loading screen
-    });
+  setState(() {
+    _isLoading = true; // Show loading screen
+  });
 
-    try {
-      String? token = await _storage.read(key: 'token');
+  try {
+    String? token = await _storage.read(key: 'token');
 
-      if (token == null) {
-        throw Exception('User not authenticated');
-      }
+    if (token == null) {
+      throw Exception('User not authenticated');
+    }
 
-      _txRef = _uuid.v4();
-      await _storage.write(key: 'ongoing_tx_ref', value: _txRef);
+    _txRef = _uuid.v4(); // Create a unique transaction reference
+    await _storage.write(key: 'ongoing_tx_ref', value: _txRef);
 
-      final totalAmount = _calculateTotal();
+    final totalAmount = _calculateTotal();
 
-      for (var item in widget.cartItems) {
-        final response = await http.post(
-          Uri.parse('https://food-delivery-backend-uls4.onrender.com/orders/createOrder'),
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer $token"
-          },
-          body: jsonEncode({
-            'tx_ref': _txRef,
-            'menuId': item['id'],
-            'restaurantId': item['restaurantId'],
-            'quantity': item['quantity'],
-            'address': widget.address, // Adding address
-            'latitude': widget.latitude, // Adding latitude
-            'longitude': widget.longitude, // Adding longitude
-            'totalPrice': totalAmount, // Adding totalPrice to be consistent with the payment
-          }),
-        );
+    for (var item in widget.cartItems) {
+      final orderBody = {
+        'tx_ref': _txRef,
+        'menuId': item['id'],
+        'restaurantId': item['restaurantId'],
+        'quantity': item['quantity'],
+        'address': widget.address, // Adding address
+        'latitude': widget.latitude, // Adding latitude
+        'longitude': widget.longitude, // Adding longitude
+        'totalPrice': totalAmount, // Adding totalPrice to be consistent with the payment
+      };
 
-        if (response.statusCode != 201) {
-          throw Exception('Order saving failed for an item');
-        }
-      }
-
-      if (_selectedPaymentMethod == 'Mobile Banking') {
-        final paymentResponse = await http.post(
-          Uri.parse(
-              'https://food-delivery-backend-uls4.onrender.com/api/transaction/createPayment'),
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer $token"
-          },
-          body: jsonEncode({
-            'tx_ref': _txRef,
-            'amount': totalAmount.toString(),
-            'currency': 'ETB',
-            'email': 'abebe@bikila.com',
-          }),
-        );
-
-        if (paymentResponse.statusCode == 200) {
-          final responseBody = jsonDecode(paymentResponse.body);
-          if (responseBody['status'] == 'success') {
-            final paymentUrl = responseBody['data']['checkout_url'];
-            if (await canLaunch(paymentUrl)) {
-              await launch(paymentUrl);
-              _checkPaymentStatus(_txRef!); // Start checking payment status after launching the URL
-            } else {
-              throw Exception('Could not launch payment URL');
-            }
-          } else {
-            throw Exception('Payment initiation failed');
-          }
-        } else {
-          throw Exception('Payment initiation failed');
-        }
+      if (_selectedPaymentMethod == 'Cash on Delivery') {
+        orderBody['status'] = 'waiting for delivery';
       } else {
+        orderBody['status'] = 'pending';  // Add "pending" status for other methods
+      }
+
+      // Send order data to the backend
+      final response = await http.post(
+        Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/orders/createOrder'),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+        body: jsonEncode(orderBody),
+      );
+
+      if (response.statusCode != 201) {
+        throw Exception('Order saving failed for an item');
+      }
+    }
+
+    if (_selectedPaymentMethod == 'Cash on Delivery') {
+      // Save the transaction for Cash on Delivery
+      final transactionResponse = await http.post(
+        Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/api/transaction/saveCashOnDeliveryTransaction'),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          'tx_ref': _txRef,
+          'amount': totalAmount,
+          'currency': 'ETB',
+          'email': 'user@example.com',  // Replace with actual user email
+        }),
+      );
+
+      if (transactionResponse.statusCode == 201) {
         setState(() {
           _isLoading = false; // Hide loading screen
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Order confirmed with $_selectedPaymentMethod'),
-          ),
+          SnackBar(content: Text('Order confirmed with Cash on Delivery')),
         );
+
+        // Navigate to OrdersPage after the order is confirmed
+        widget.cartItems.clear();
+        Navigator.of(context).pop(); // Pop CheckoutPage
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => OrdersPage()),
+        );
+      } else {
+        throw Exception('Transaction saving failed');
       }
-    } catch (e) {
-      setState(() {
-        _isLoading = false; // Hide loading screen on error
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+    } else {
+      // Handle Mobile Banking payment flow (as before)
+      final paymentResponse = await http.post(
+        Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/api/transaction/createPayment'),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+        body: jsonEncode({
+          'tx_ref': _txRef,
+          'amount': totalAmount.toString(),
+          'currency': 'ETB',
+          'email': 'user@example.com',
+        }),
       );
+
+      if (paymentResponse.statusCode == 200) {
+        final responseBody = jsonDecode(paymentResponse.body);
+        final paymentUrl = responseBody['data']['checkout_url'];
+        if (await canLaunch(paymentUrl)) {
+          await launch(paymentUrl);
+          _checkPaymentStatus(_txRef!); // Start checking payment status
+        } else {
+          throw Exception('Could not launch payment URL');
+        }
+      } else {
+        throw Exception('Payment initiation failed');
+      }
     }
+  } catch (e) {
+    setState(() {
+      _isLoading = false; // Hide loading screen on error
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString())),
+    );
   }
+}
+
+
 
   Future<void> _checkPaymentStatus(String txRef) async {
     try {
@@ -176,14 +209,16 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
               _isLoading = false; // Hide loading screen
               widget.cartItems.clear(); // Clear the cart items
             });
-            await _storage.delete(key: 'ongoing_tx_ref'); // Clear the transaction reference
+            await _storage.delete(
+                key: 'ongoing_tx_ref'); // Clear the transaction reference
 
             // Pop the current page (CheckoutPage)
             Navigator.of(context).pop();
-             Navigator.of(context).pop();
+            Navigator.of(context).pop();
 
             // Navigate to the Orders page using the widget instance
-            Navigator.of(context).push(MaterialPageRoute(builder: (context) => OrdersPage()));
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (context) => OrdersPage()));
             return;
           }
         }
@@ -192,7 +227,8 @@ class _CheckoutPageState extends State<CheckoutPage> with WidgetsBindingObserver
           SnackBar(content: Text('Waiting for payment confirmation...')),
         );
 
-        await Future.delayed(Duration(seconds: 5)); // Wait for 5 seconds before checking again
+        await Future.delayed(
+            Duration(seconds: 5)); // Wait for 5 seconds before checking again
       }
     } catch (e) {
       setState(() {

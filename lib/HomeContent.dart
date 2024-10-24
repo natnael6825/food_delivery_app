@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:geolocator/geolocator.dart'; // For getting the current location
 import 'map_screen.dart';
 import 'MenuPage.dart'; // Import the MenuPage
 
@@ -16,15 +17,57 @@ class HomeContent extends StatefulWidget {
 class _HomeContentState extends State<HomeContent> {
   List<dynamic> restaurants = [];
   bool isLoading = true;
+  double? userLatitude;
+  double? userLongitude;
 
   @override
   void initState() {
     super.initState();
-    fetchRestaurants();
+    _getCurrentLocationAndFetchRestaurants();
   }
 
-  Future<void> fetchRestaurants() async {
-    final url = Uri.parse('https://food-delivery-backend-uls4.onrender.com/restaurant/restaurants'); // Replace with your API URL
+  // Function to get the user's current location
+  Future<void> _getCurrentLocationAndFetchRestaurants() async {
+    try {
+      Position position = await _determinePosition();
+      userLatitude = position.latitude;
+      userLongitude = position.longitude;
+      await fetchRestaurants(userLatitude!, userLongitude!);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to get location: $e')),
+      );
+    }
+  }
+
+  // Function to request location permission and get the current position
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return Future.error('Location services are disabled.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Location permissions are permanently denied, we cannot request permissions.');
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
+
+  // Fetch restaurants based on the user's current latitude and longitude
+  Future<void> fetchRestaurants(double latitude, double longitude) async {
+    final url = Uri.parse('https://e6e4-196-189-16-22.ngrok-free.app/restaurant/restaurants?latitude=$latitude&longitude=$longitude'); // Pass latitude and longitude as query parameters
 
     try {
       final response = await http.get(url);
@@ -59,7 +102,7 @@ class _HomeContentState extends State<HomeContent> {
     setState(() {
       isLoading = true;
     });
-    await fetchRestaurants();
+    await fetchRestaurants(userLatitude!, userLongitude!); // Use stored lat/long for refresh
   }
 
   @override
